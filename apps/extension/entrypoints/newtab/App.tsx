@@ -1,103 +1,75 @@
-import { useCallback, useEffect, useState } from "react";
-import { DEFAULT_MODEL, DEFAULT_BLOCKED_SITES, type HomepageModel } from "@homepage/agent-core";
-import { DEFAULT_REBUILD_INTERVAL_HOURS } from "@/lib/auto-rebuild";
-import { BUILD_STEPS } from "@/lib/protocol";
-import { KEYS, extensionStore, loadHomepage, loadSettings, saveSetting } from "@/lib/storage";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { DEFAULT_BLOCKED_SITES } from "@homepage/agent-core";
+import { DEFAULT_COLLECT_INTERVAL_HOURS } from "@/lib/auto-collect";
+import { DEFAULT_BRIDGE_URL } from "@/lib/bridge";
+import { COLLECT_STEPS } from "@/lib/protocol";
+import { loadSettings, saveSetting } from "@/lib/storage";
 import { toRenderable } from "@/lib/transpile";
-import { ApiKeySetup } from "./components/ApiKeySetup";
-import { BuildProgress } from "./components/BuildProgress";
+import { CollectProgress } from "./components/CollectProgress";
 import { HomepagePreview } from "./components/HomepagePreview";
 import { SettingsModal } from "./components/SettingsModal";
 import { btn, errorBox } from "./components/ui";
-import { useHomepageBuild } from "./useHomepageBuild";
+import { useBridgeHomepage } from "./useBridgeHomepage";
+import { useCollect } from "./useCollect";
+
+const mono = { fontFamily: "ui-monospace, monospace", background: "#f1f1f1", padding: "2px 6px", borderRadius: 3 } as const;
 
 export default function App() {
   const [loading, setLoading] = useState(true);
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const [systemPrompt, setSystemPrompt] = useState("");
   const [blockedSites, setBlockedSites] = useState<string[]>(DEFAULT_BLOCKED_SITES);
-  const [model, setModel] = useState<HomepageModel>(DEFAULT_MODEL);
-  const [autoRebuild, setAutoRebuild] = useState(true);
-  const [intervalHours, setIntervalHours] = useState(DEFAULT_REBUILD_INTERVAL_HOURS);
-  /** Transpiled homepage, ready for Sandpack. */
-  const [renderedCode, setRenderedCode] = useState<string | null>(null);
-  /** A session left mid-flight, offered as "Resume interrupted build". */
-  const [resumable, setResumable] = useState<string | null>(null);
+  const [bridgeUrl, setBridgeUrl] = useState<string | null>(null);
+  const [autoCollect, setAutoCollect] = useState(true);
+  const [intervalHours, setIntervalHours] = useState(DEFAULT_COLLECT_INTERVAL_HOURS);
   const [showSettings, setShowSettings] = useState(false);
   /** Expand the full progress view over an existing homepage. */
   const [viewProgress, setViewProgress] = useState(false);
   /** The error the user dismissed, so a stale banner doesn't linger. */
   const [dismissedError, setDismissedError] = useState<string | null>(null);
 
-  const { state, build, cancel } = useHomepageBuild((code) => setRenderedCode(toRenderable(code)));
+  const { state, start, cancel } = useCollect();
+  const homepage = useBridgeHomepage(bridgeUrl);
+  const renderedCode = useMemo(() => (homepage.code ? toRenderable(homepage.code) : null), [homepage.code]);
 
-  // Once a build finishes, drop back to the homepage view.
   useEffect(() => {
     if (!state.running) setViewProgress(false);
   }, [state.running]);
 
-  // Scheduled rebuilds are driven by the worker's alarm, not by opening a tab;
-  // useHomepageBuild surfaces any build already in flight.
   useEffect(() => {
     (async () => {
       try {
-        const [settings, homepage, activeSession] = await Promise.all([
-          loadSettings(),
-          loadHomepage(),
-          extensionStore.get<string>(KEYS.activeSessionId),
-        ]);
-        setApiKey(settings.apiKey);
-        setSystemPrompt(settings.systemPrompt);
+        const settings = await loadSettings();
         setBlockedSites(settings.blockedSites);
-        setModel(settings.model);
-        setAutoRebuild(settings.autoRebuild);
-        setIntervalHours(settings.rebuildIntervalHours ?? DEFAULT_REBUILD_INTERVAL_HOURS);
-        setResumable(activeSession ?? null);
-        if (homepage?.code) setRenderedCode(toRenderable(homepage.code));
+        setBridgeUrl(settings.bridgeUrl ?? DEFAULT_BRIDGE_URL);
+        setAutoCollect(settings.autoCollect);
+        setIntervalHours(settings.collectIntervalHours ?? DEFAULT_COLLECT_INTERVAL_HOURS);
       } finally {
         setLoading(false);
       }
     })();
   }, []);
 
-  const saveKey = useCallback(async (key: string) => {
-    await saveSetting("apiKey", key);
-    setApiKey(key);
+  const saveRules = useCallback(async (sites: string[], url: string) => {
+    await Promise.all([saveSetting("blockedSites", sites), saveSetting("bridgeUrl", url)]);
+    setBlockedSites(sites);
+    setBridgeUrl(url);
+    setShowSettings(false);
   }, []);
 
-  const savePrompt = useCallback(
-    async (prompt: string, sites: string[]) => {
-      await Promise.all([saveSetting("systemPrompt", prompt), saveSetting("blockedSites", sites)]);
-      setBlockedSites(sites);
-      setSystemPrompt(prompt);
-      setShowSettings(false);
-      setRenderedCode(null);
-      build();
-    },
-    [build],
-  );
-
-  // These persist immediately; the worker reads them on its next heartbeat or build.
-  const changeModel = useCallback(async (next: HomepageModel) => {
-    setModel(next);
-    await saveSetting("model", next);
-  }, []);
-  const toggleAutoRebuild = useCallback(async (next: boolean) => {
-    setAutoRebuild(next);
-    await saveSetting("autoRebuild", next);
+  const toggleAutoCollect = useCallback(async (next: boolean) => {
+    setAutoCollect(next);
+    await saveSetting("autoCollect", next);
   }, []);
   const changeInterval = useCallback(async (next: number) => {
     setIntervalHours(next);
-    await saveSetting("rebuildIntervalHours", next);
+    await saveSetting("collectIntervalHours", next);
   }, []);
 
-  if (loading) return <div style={{ padding: 20, textAlign: "center" }}>Loading…</div>;
-  if (!apiKey) return <ApiKeySetup onSave={saveKey} />;
+  if (loading || !homepage.ready) return <div style={{ padding: 20, textAlign: "center" }}>Carregando…</div>;
 
-  // With no homepage to fall back to, a running build takes over the tab.
+  // With no homepage to fall back to, a running collection takes over the tab.
   if (state.running && (!renderedCode || viewProgress)) {
     return (
-      <BuildProgress
+      <CollectProgress
         state={state}
         onCancel={cancel}
         onBack={renderedCode ? () => setViewProgress(false) : undefined}
@@ -107,26 +79,48 @@ export default function App() {
 
   if (!renderedCode) {
     return (
-      <div style={{ maxWidth: 560, margin: "14vh auto", padding: 24, fontFamily: "system-ui" }}>
-        <h1 style={{ fontSize: 26 }}>Build your homepage</h1>
+      <div style={{ maxWidth: 600, margin: "12vh auto", padding: 24, fontFamily: "system-ui", color: "#222" }}>
+        <h1 style={{ fontSize: 26 }}>Sua home ainda não foi montada</h1>
         <p style={{ color: "#555", lineHeight: 1.6 }}>
-          The agent reads your browsing history, opens the pages you actually follow, and writes a
-          homepage from what it finds today.
+          Quem monta a home é o Claude Code, direto no chat — sem chave de API. O navegador só junta
+          o material (histórico e páginas que você acompanha) e o Claude escreve a home a partir dele.
         </p>
+        <ol style={{ color: "#444", lineHeight: 1.9, paddingLeft: 20 }}>
+          <li>
+            Na pasta do projeto, rode <code style={mono}>pnpm bridge</code>{" "}
+            {homepage.online ? <b style={{ color: "#0a7" }}>(✓ ponte conectada)</b> : <b style={{ color: "#a02620" }}>(ponte offline)</b>}
+          </li>
+          <li>Clique em <b>Coletar dados</b> abaixo.</li>
+          <li>No chat do Claude Code, peça: <i>"monta minha home"</i>. Ela aparece aqui sozinha.</li>
+        </ol>
         {state.error && (
           <div style={{ ...errorBox, margin: "16px 0", padding: 12, borderRadius: 4 }}>{state.error}</div>
         )}
         <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
-          <button style={btn} onClick={() => build()}>
-            Build today&apos;s homepage
+          <button style={{ ...btn, opacity: homepage.online ? 1 : 0.5 }} disabled={!homepage.online} onClick={start}>
+            Coletar dados
           </button>
-          {resumable && (
-            <button style={{ ...btn, backgroundColor: "#555" }} onClick={() => build({ resume: true })}>
-              Resume interrupted build
-            </button>
-          )}
+          <button style={{ ...btn, backgroundColor: "#555" }} onClick={() => setShowSettings(true)}>
+            ⚙️ Configurações
+          </button>
         </div>
+        {showSettings && settingsModal()}
       </div>
+    );
+  }
+
+  function settingsModal() {
+    return (
+      <SettingsModal
+        blockedSites={blockedSites}
+        bridgeUrl={bridgeUrl ?? DEFAULT_BRIDGE_URL}
+        autoCollect={autoCollect}
+        onToggleAutoCollect={toggleAutoCollect}
+        intervalHours={intervalHours}
+        onChangeInterval={changeInterval}
+        onClose={() => setShowSettings(false)}
+        onSave={saveRules}
+      />
     );
   }
 
@@ -134,14 +128,18 @@ export default function App() {
 
   return (
     <div style={{ height: "100vh", width: "100vw" }}>
-      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 999, display: "flex", gap: 8 }}>
+      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 999, display: "flex", gap: 8, alignItems: "center" }}>
+        <span
+          title={homepage.online ? "Ponte local conectada: edições do Claude aparecem aqui sozinhas" : "Ponte offline. Rode: pnpm bridge"}
+          style={{ ...btn, backgroundColor: "rgba(0,0,0,0.55)", cursor: "default", fontSize: 12, padding: "6px 10px" }}
+        >
+          {homepage.online ? "● Claude conectado" : "○ ponte offline"}
+        </span>
         {state.running ? (
-          // A build is running in the background (from here, another tab, or the
-          // scheduled rebuild). Let the user watch it without losing this page.
           <button
             style={{ ...btn, backgroundColor: "#0a7", display: "flex", alignItems: "center", gap: 8 }}
             onClick={() => setViewProgress(true)}
-            title="View build progress"
+            title="Ver progresso da coleta"
           >
             <span
               style={{
@@ -152,15 +150,24 @@ export default function App() {
                 animation: "hb-pulse 1.2s ease-in-out infinite",
               }}
             />
-            Building… {Math.min(state.stepIndex + 1, BUILD_STEPS.length)}/{BUILD_STEPS.length}
+            Coletando… {Math.min(state.stepIndex + 1, COLLECT_STEPS.length)}/{COLLECT_STEPS.length}
           </button>
         ) : (
-          <button style={btn} onClick={() => build()} title="Rebuild now">
-            ↻ Rebuild
+          <button
+            style={{ ...btn, opacity: homepage.online ? 1 : 0.5 }}
+            disabled={!homepage.online}
+            onClick={start}
+            title={
+              homepage.collectRequested
+                ? "O Claude pediu uma coleta nova: ela começa em instantes"
+                : "Junta histórico e páginas novas para o Claude usar na próxima atualização"
+            }
+          >
+            {homepage.collectRequested ? "⏳ Coleta pedida" : "↻ Coletar dados"}
           </button>
         )}
-        <button style={btn} onClick={() => setShowSettings(true)} title="Customize homepage">
-          ⚙️ Settings
+        <button style={btn} onClick={() => setShowSettings(true)} title="Configurações">
+          ⚙️
         </button>
       </div>
 
@@ -171,7 +178,7 @@ export default function App() {
             position: "fixed",
             top: 20,
             left: 20,
-            right: 260,
+            right: 420,
             zIndex: 999,
             padding: "10px 14px",
             borderRadius: 6,
@@ -181,22 +188,15 @@ export default function App() {
           }}
         >
           <span style={{ flex: 1 }}>
-            <b>Build failed.</b> {state.error}
+            <b>A coleta falhou.</b> {state.error}
           </span>
-          <button style={{ ...btn, padding: "4px 10px", backgroundColor: "#a02620" }} onClick={() => build()}>
-            Retry
+          <button style={{ ...btn, padding: "4px 10px", backgroundColor: "#a02620" }} onClick={start}>
+            Tentar de novo
           </button>
           <button
             onClick={() => setDismissedError(state.error)}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "#a02620",
-              cursor: "pointer",
-              fontSize: 16,
-              lineHeight: 1,
-            }}
-            title="Dismiss"
+            style={{ background: "transparent", border: "none", color: "#a02620", cursor: "pointer", fontSize: 16, lineHeight: 1 }}
+            title="Dispensar"
           >
             ✕
           </button>
@@ -205,20 +205,7 @@ export default function App() {
 
       <HomepagePreview code={renderedCode} />
 
-      {showSettings && (
-        <SettingsModal
-          initialPrompt={systemPrompt}
-          blockedSites={blockedSites}
-          model={model}
-          onChangeModel={changeModel}
-          autoRebuild={autoRebuild}
-          onToggleAutoRebuild={toggleAutoRebuild}
-          intervalHours={intervalHours}
-          onChangeInterval={changeInterval}
-          onClose={() => setShowSettings(false)}
-          onSave={savePrompt}
-        />
-      )}
+      {showSettings && settingsModal()}
     </div>
   );
 }

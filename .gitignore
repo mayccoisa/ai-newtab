@@ -4,7 +4,7 @@ dist/
 .wxt/
 coverage/
 
-# Secrets — your Anthropic key goes here for the harness
+# Secrets
 .env
 .env.*
 !.env.example
@@ -19,3 +19,7 @@ harness/out/
 .claude/settings.local.json
 .DS_Store
 *.log
+
+# Curadoria: your history and pages you read while logged in. Private; only the README is tracked.
+curadoria/*
+!curadoria/README.md

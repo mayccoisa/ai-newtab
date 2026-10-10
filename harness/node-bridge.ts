@@ -1,48 +1,12 @@
 /**
- * A BrowserBridge backed by fixtures + fetch, for verifying the agent pipeline
- * outside Chrome. The extension supplies the real one (chrome.history / tabs).
- *
- * This is a test harness, not a fallback: it cannot see authenticated or
- * JS-rendered pages, which is the entire reason getPageHtml runs in the user's
- * browser in production.
+ * Fixtures for the Bun tests: a stand-in for what the extension's lib/history.ts
+ * produces from chrome.history, and where Claude writes the homepage.
  */
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { BrowserBridge, KVStore, RawSiteMetadata } from "@homepage/agent-core";
+import type { RawSiteMetadata } from "@homepage/agent-core";
 
-/** Harness state (cached agent/environment IDs, active session) and output, next to these scripts. */
-export const STATE_PATH = join(import.meta.dir, ".agent-state.json");
-export const OUT_DIR = join(import.meta.dir, "out");
-export const OUT_PATH = join(OUT_DIR, "homepage.tsx");
-
-export class FileKVStore implements KVStore {
-  constructor(private readonly path: string) {}
-
-  private read(): Record<string, unknown> {
-    if (!existsSync(this.path)) return {};
-    try {
-      return JSON.parse(readFileSync(this.path, "utf-8"));
-    } catch {
-      return {};
-    }
-  }
-
-  async get<T>(key: string): Promise<T | undefined> {
-    return this.read()[key] as T | undefined;
-  }
-
-  async set(key: string, value: unknown): Promise<void> {
-    const data = this.read();
-    data[key] = value;
-    writeFileSync(this.path, JSON.stringify(data, null, 2));
-  }
-
-  async remove(key: string): Promise<void> {
-    const data = this.read();
-    delete data[key];
-    writeFileSync(this.path, JSON.stringify(data, null, 2));
-  }
-}
+/** curadoria/homepage.tsx — the file Claude Code writes and the extension renders. */
+export const OUT_PATH = join(import.meta.dir, "..", "curadoria", "homepage.tsx");
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -81,50 +45,3 @@ export function fixtureHistory(now = Date.now()): RawSiteMetadata[] {
 }
 
 /** Crude sanitizer approximating the extension's cleanHtmlForLLM (lib/scraper.ts). */
-function cleanHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<svg[\s\S]*?<\/svg>/gi, "")
-    .replace(/<!--[\s\S]*?-->/g, "")
-    .replace(/\son\w+="[^"]*"/gi, "")
-    .replace(/\n{3,}/g, "\n\n");
-}
-
-function titleOf(html: string, url: string): string {
-  const m = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
-  return m ? m[1].trim().slice(0, 200) : url;
-}
-
-export const nodeBridge: BrowserBridge = {
-  async getHistory() {
-    const sites = fixtureHistory();
-    return { sites, totalSitesSeen: sites.length };
-  },
-
-  async getPageHtml({ urls }) {
-    const pages: Array<{ url: string; title: string; html: string }> = [];
-    const failed: Array<{ url: string; reason: string }> = [];
-
-    await Promise.all(
-      urls.map(async (url) => {
-        try {
-          const res = await fetch(url, {
-            headers: { "user-agent": "Mozilla/5.0 (homepage-agent-harness)" },
-            signal: AbortSignal.timeout(20_000),
-          });
-          if (!res.ok) {
-            failed.push({ url, reason: `HTTP ${res.status}` });
-            return;
-          }
-          const raw = await res.text();
-          pages.push({ url, title: titleOf(raw, url), html: cleanHtml(raw) });
-        } catch (err) {
-          failed.push({ url, reason: String(err) });
-        }
-      }),
-    );
-
-    return { pages, failed };
-  },
-};

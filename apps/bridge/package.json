@@ -1,0 +1,11 @@
+{
+  "name": "@homepage/bridge",
+  "description": "Local server between the extension and Claude Code: receives collected data, serves the homepage file.",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test"
+  }
+}

@@ -1,27 +1,25 @@
-import { BuildManager } from "@/lib/build-manager";
-import { AGENT_PORT } from "@/lib/protocol";
+import { CollectManager } from "@/lib/collector";
+import { COLLECT_PORT } from "@/lib/protocol";
 
 /**
- * The service worker is the build host. It owns the agent loop (BuildManager),
- * holds the Anthropic session stream, runs the browser tools in-process, and
- * drives the scheduled rebuild from an alarm.
+ * The service worker owns the data collection (CollectManager). It reads what
+ * only the browser can see — history and logged-in pages — and hands it to the
+ * local bridge, where Claude Code picks it up. There is no LLM call anywhere.
  *
- * New-tab pages are thin views that connect on AGENT_PORT. Closing every tab
- * doesn't stop a build: the worker keeps itself warm during an active turn, and
- * the alarm heartbeat reattaches to an interrupted session after an unexpected
- * kill.
+ * New-tab pages are thin views that connect on COLLECT_PORT. The alarm heartbeat
+ * checks the bridge for a collection request from Claude and for the scheduled
+ * auto-collect.
  */
 const HEARTBEAT_ALARM = "homepage-heartbeat";
 
 export default defineBackground(() => {
-  const manager = new BuildManager();
+  const manager = new CollectManager();
 
   browser.runtime.onConnect.addListener((port) => {
-    if (port.name === AGENT_PORT) manager.attach(port);
+    if (port.name === COLLECT_PORT) manager.attach(port);
   });
 
-  // ~1 min is the chrome.alarms floor — fine for a recovery net and the
-  // scheduled rebuild check.
+  // ~1 min is the chrome.alarms floor — fine for noticing a request from Claude.
   browser.alarms.create(HEARTBEAT_ALARM, { periodInMinutes: 1 });
   browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === HEARTBEAT_ALARM) void manager.tick();
@@ -29,8 +27,5 @@ export default defineBackground(() => {
 
   browser.runtime.onStartup.addListener(() => void manager.tick());
   browser.runtime.onInstalled.addListener(() => void manager.tick());
-
-  // On every wake, reattach to an interrupted build (or consider a scheduled
-  // rebuild) immediately rather than waiting for the first alarm.
   void manager.tick();
 });

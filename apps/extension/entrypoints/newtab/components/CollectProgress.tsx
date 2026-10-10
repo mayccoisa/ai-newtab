@@ -1,20 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { BUILD_STEPS, LOG_RETENTION, type BuildState } from "@/lib/protocol";
+import { COLLECT_STEPS, LOG_RETENTION, type CollectState } from "@/lib/protocol";
 
-/** Full-screen build view: the step list on the left, live narration and log on the right. */
-export function BuildProgress({
+/** Full-screen collection view: the step list on the left, the activity log on the right. */
+export function CollectProgress({
   state,
   onCancel,
   onBack,
 }: {
-  state: BuildState;
+  state: CollectState;
   onCancel: () => void;
-  /** Present when a build is running over an existing homepage — offers a way back to it. */
+  /** Present when a collection runs over an existing homepage — offers a way back to it. */
   onBack?: () => void;
 }) {
-  const { stepIndex, detail, narration, logs } = state;
+  const { stepIndex, detail, logs } = state;
   const [elapsed, setElapsed] = useState(0);
-  const narrRef = useRef<HTMLDivElement>(null);
   const logRef = useRef<HTMLPreElement>(null);
 
   useEffect(() => {
@@ -22,10 +21,6 @@ export function BuildProgress({
     return () => clearInterval(t);
   }, []);
 
-  // Keep the streaming panels pinned to their latest line.
-  useEffect(() => {
-    if (narrRef.current) narrRef.current.scrollTop = narrRef.current.scrollHeight;
-  }, [narration]);
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [logs]);
@@ -38,14 +33,14 @@ export function BuildProgress({
       <div className="build-left">
         <div className="build-panel">
           <div className="build-top">
-            <span className="build-title">Building your homepage</span>
+            <span className="build-title">Coletando seus dados</span>
             <span className="build-elapsed">
               {mm}:{ss}
             </span>
           </div>
 
           <ol className="build-steps">
-            {BUILD_STEPS.map((step, i) => {
+            {COLLECT_STEPS.map((step, i) => {
               const status = i < stepIndex ? "done" : i === stepIndex ? "active" : "pending";
               return (
                 <li key={step.label} className={`build-step ${status}`}>
@@ -61,11 +56,11 @@ export function BuildProgress({
 
           <div style={{ display: "flex", gap: 10 }}>
             <button className="build-cancel" onClick={onCancel}>
-              Cancel
+              Cancelar
             </button>
             {onBack && (
               <button className="build-cancel" style={{ background: "transparent" }} onClick={onBack}>
-                ← Back to homepage
+                ← Voltar para a home
               </button>
             )}
           </div>
@@ -74,14 +69,14 @@ export function BuildProgress({
 
       <div className="build-right">
         <div className="build-panel">
-          <div className="build-eyebrow">Agent</div>
-          <div className="build-narration" ref={narrRef}>
-            {narration || "Warming up — reading what you’ve been browsing…"}
+          <div className="build-eyebrow">O que está acontecendo</div>
+          <div className="build-narration">
+            Estou lendo seu histórico e abrindo, numa janela em segundo plano, as páginas que você
+            acompanha. Quando terminar, é só pedir no chat do Claude Code para atualizar a home.
           </div>
-
           {logs.length > 0 && (
             <>
-              <div className="build-eyebrow build-log-label">Activity log</div>
+              <div className="build-eyebrow build-log-label">Registro</div>
               <pre className="build-log" ref={logRef}>
                 {logs.slice(-LOG_RETENTION).join("\n")}
               </pre>

@@ -4,17 +4,16 @@ import { defineConfig } from "wxt";
 export default defineConfig({
   modules: ["@wxt-dev/module-react"],
   manifest: {
-    name: "AI Homepage",
-    description: "A new-tab page an agent rebuilds daily from what you've actually been browsing.",
+    name: "AI Homepage (Claude Code)",
+    description: "Uma nova aba que o Claude Code monta para você a partir do que você acompanha, sem chave de API.",
     permissions: [
-      "history", //       getHistory tool
-      "tabs", //          getPageHtml: open pages and watch them load
-      "scripting", //     getPageHtml: inject the scraper into loaded pages
-      "storage", //       API key, settings, the built homepage
-      "alarms", //        heartbeat: scheduled rebuilds + reattach after a worker kill
-      "notifications", // surface a failed headless rebuild when no tab is open
+      "history", //       collector: rank the sites you actually visit
+      "tabs", //          collector: open pages and watch them load
+      "scripting", //     collector: inject the scraper into loaded pages
+      "storage", //       settings and the last homepage received
+      "alarms", //        heartbeat: notice a collection request from Claude, scheduled collection
     ],
-    // Needed to scrape arbitrary pages; also exempts api.anthropic.com from CORS.
+    // Needed to scrape arbitrary pages and to reach the local bridge on 127.0.0.1.
     host_permissions: ["<all_urls>"],
   },
 });

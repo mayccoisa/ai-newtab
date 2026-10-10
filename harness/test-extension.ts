@@ -3,10 +3,12 @@
  * of the system the Bun harness can't reach:
  *
  *   1. the MV3 service worker registers,
- *   2. the new-tab override renders (the API-key screen on a fresh profile),
- *   3. the worker answers `subscribe` on the build port with a snapshot,
- *   4. `startBuild` with no API key fails cleanly with an error message,
- *   5. `chrome.history` is readable, so the `history` permission is real.
+ *   2. the new-tab override renders (the empty state on a fresh profile),
+ *   3. the worker answers `subscribe` on the collector port with a snapshot,
+ *   4. `start` with the bridge offline fails cleanly with an error message,
+ *   5. `chrome.history` is readable, so the `history` permission is real,
+ *   6. with the local bridge up, a homepage.tsx written to disk shows up in the
+ *      new tab, and editing the file updates the tab without a reload.
  *
  * No API calls are made. Chrome 136+ ignores `--load-extension`, so the
  * extension is loaded over CDP's Extensions domain instead.
@@ -15,7 +17,7 @@
  * Set CHROME_PATH if Chrome isn't at the default macOS location.
  */
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -148,19 +150,22 @@ try {
   }
   check("new-tab override loads", href.startsWith("chrome-extension://"), href);
 
-  await sleep(2500); // let React mount
-  const bodyText = await page.evaluate<string>("document.body.innerText");
+  let bodyText = "";
+  for (let i = 0; i < 60 && !/Sua home ainda/i.test(bodyText); i++) {
+    await sleep(250); // let React mount
+    bodyText = await page.evaluate<string>("document.body.innerText");
+  }
   check(
-    "renders the API-key setup screen",
-    /Connect your Anthropic API key/i.test(bodyText),
+    "renders the empty state (no homepage yet)",
+    /Sua home ainda não foi montada/i.test(bodyText),
     bodyText.split("\n").filter(Boolean)[0]?.slice(0, 50),
   );
 
-  // Open a build port, send one message, and collect replies for a moment.
+  // Open a collector port, send one message, and collect replies for a moment.
   const talk = (msg: object, waitMs: number) =>
     page.evaluate<string>(`
       new Promise((resolve) => {
-        const port = chrome.runtime.connect({ name: "homepage-agent" });
+        const port = chrome.runtime.connect({ name: "homepage-collector" });
         const replies = [];
         port.onMessage.addListener((m) => replies.push(m));
         port.postMessage(${JSON.stringify(msg)});
@@ -172,15 +177,15 @@ try {
   const subscribed = await talk({ kind: "subscribe" }, 1500);
   const snapshot = subscribed.find((m) => m.kind === "snapshot");
   check(
-    "worker answers subscribe with a build snapshot",
+    "worker answers subscribe with a collector snapshot",
     Boolean(snapshot) && snapshot.state.running === false,
     JSON.stringify(subscribed[0])?.slice(0, 80),
   );
 
-  // ---- 4. startBuild without a key fails cleanly ----------------------------
-  const started = await talk({ kind: "startBuild" }, 3000);
+  // ---- 4. start with the bridge offline fails cleanly ----------------------------
+  const started = await talk({ kind: "start" }, 6000);
   const error = started.find((m) => m.kind === "error");
-  check("startBuild with no API key reports an error", /API key/i.test(error?.message ?? ""), error?.message);
+  check("start with the bridge offline reports an error", /ponte local/i.test(error?.message ?? ""), error?.message);
 
   // ---- 5. chrome.history is readable ---------------------------------------
   const domains = await page.evaluate<string[]>(`
@@ -203,6 +208,47 @@ try {
     domains.join(", "),
   );
 
+  // ---- 6. bridge up: the file Claude writes becomes the homepage ------------
+  const { createBridge } = await import("../apps/bridge/server.mjs");
+  const curadoria = mkdtempSync(join(tmpdir(), "hp-cur-"));
+  const bridge = createBridge({ dir: curadoria, port: 4317 });
+  await bridge.listen();
+  const component = (title: string) =>
+    `import React from "react";
+export default function PersonalizedHomepage() { return <h1>${title}</h1>; }`;
+  const stored = () =>
+    page.evaluate<string>(`chrome.storage.local.get("homepageData").then((r) => (r.homepageData && r.homepageData.code) || "")`);
+  const until = async (fn: () => Promise<boolean>) => {
+    for (let i = 0; i < 40; i++) {
+      if (await fn()) return true;
+      await sleep(250);
+    }
+    return false;
+  };
+
+  try {
+    writeFileSync(bridge.files.homepage, component("primeira versao"));
+    await page.send("Page.reload");
+    check(
+      "new tab picks up homepage.tsx written to disk",
+      await until(async () => (await stored()).includes("primeira versao")),
+    );
+    check(
+      "new tab shows the bridge as connected",
+      await until(async () => /Claude conectado/.test(await page.evaluate<string>("document.body.innerText"))),
+    );
+
+    await sleep(1100); // mtime granularity
+    writeFileSync(bridge.files.homepage, component("segunda versao"));
+    check(
+      "editing the file updates the open tab without a reload",
+      await until(async () => (await stored()).includes("segunda versao")),
+    );
+  } finally {
+    bridge.server.close();
+    rmSync(curadoria, { recursive: true, force: true });
+  }
+
   page.close();
   browser.close();
 } catch (err) {
@@ -211,7 +257,12 @@ try {
 } finally {
   chrome.kill("SIGKILL");
   await sleep(300);
-  rmSync(profile, { recursive: true, force: true });
+  try {
+    // Windows keeps the profile locked for a moment after Chrome exits.
+    rmSync(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 300 });
+  } catch {
+    /* a leftover temp dir is not a test failure */
+  }
 }
 
 console.log(
