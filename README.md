@@ -1,6 +1,6 @@
 # AI Homepage · versão Claude Code (sem chave de API)
 
-Fork de [ThariqS/ai-newtab](https://github.com/ThariqS/ai-newtab). Uma nova aba montada a partir
+Fork de [ThariqS/ai-newtab](https://github.com/ThariqS/ai-newtab). Um diário montado a partir
 do que você realmente acompanha, **mas quem faz a curadoria é o Claude Code, no chat**. Não existe
 chave de API, token de LLM nem custo por build: a extensão só coleta, o chat escreve a home.
 
@@ -9,7 +9,7 @@ chave de API, token de LLM nem custo por build: a extensão só coleta, o chat e
  ───────────────────              ───────────────────                ───────────────────
  histórico + páginas logadas ──▶  coleta/historico.json     ──────▶  lê o material
                                   coleta/paginas/*.html              escreve a home
- nova aba renderiza        ◀────  homepage.tsx              ◀──────  "deixa mais enxuta"
+ Diário renderiza          ◀────  homepage.tsx              ◀──────  "deixa mais enxuta"
 ```
 
 ## O que mudou em relação ao original
@@ -38,7 +38,7 @@ npx pnpm@10.11.1 build
 
 ## Usar
 
-1. Abra uma nova aba e clique em **Coletar dados** (abre as páginas numa janela em segundo plano).
+1. Clique no ícone da extensão (ela também abre sozinha quando o Chrome inicia) e em **Coletar** (abre as páginas numa janela em segundo plano).
 2. No chat do Claude Code, nesta pasta: **"monta minha home"**.
 3. Daí em diante é conversa: *"põe o clima e minha agenda no topo"*, *"só uma coluna, sem imagens"*,
    *"atualiza com o que saiu hoje"* (o Claude pede uma coleta nova sozinho), *"sempre sem política"*
@@ -62,7 +62,7 @@ não é onde está o conteúdo. Veja [CLAUDE.md](./CLAUDE.md) para o roteiro com
 
 ```
 packages/agent-core   filtro de sites e resumo do histórico (puro, sem chrome.* nem node:*)
-apps/extension        a extensão MV3 (WXT + React): coletor, nova aba
+apps/extension        a extensão MV3 (WXT + React): coletor e a página do Diário
 apps/bridge           ponte local (Node puro, sem dependências)
 harness               testes do Bun e teste da extensão no Chrome headless
 ```

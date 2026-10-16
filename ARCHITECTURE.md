@@ -5,7 +5,7 @@ Sem LLM no caminho. Três partes, todas na sua máquina:
 | | Roda onde | Faz o quê |
 |---|---|---|
 | **Extensão** (service worker) | Navegador | Coleta: lê `chrome.history`, abre páginas numa janela em segundo plano, higieniza o HTML e envia à ponte |
-| **Extensão** (nova aba) | Navegador | Visão fina: consulta a ponte e renderiza `homepage.tsx` num iframe Sandpack |
+| **Extensão** (página do Diário: abre com o Chrome e pelo ícone) | Navegador | Visão fina: consulta a ponte e renderiza `homepage.tsx` num iframe Sandpack |
 | **Ponte** (`apps/bridge`) | Node, `127.0.0.1:4317` | Grava a coleta em `curadoria/coleta/` e serve `curadoria/homepage.tsx` |
 | **Claude Code** (o chat) | Sua sessão | Lê a coleta do disco e escreve `curadoria/homepage.tsx` |
 
@@ -69,7 +69,7 @@ por modelo, então roda dentro de um iframe Sandpack, nunca na página da extens
 ```
 packages/agent-core/   puro: tipos, resumo do histórico, filtro de sites (sem chrome.*, browser.* ou node:*)
 apps/bridge/           server.mjs + testes
-apps/extension/        entrypoints/background.ts, newtab/, lib/{collector,bridge,history,scraper,storage,protocol,auto-collect,transpile}.ts
+apps/extension/        entrypoints/background.ts, home/, lib/{collector,bridge,history,scraper,storage,protocol,auto-collect,transpile}.ts
 harness/               testes do Bun e verificação da extensão no Chrome headless
 curadoria/             pasta de trabalho (ignorada pelo git); ver curadoria/README.md
 ```
@@ -81,7 +81,7 @@ curadoria/             pasta de trabalho (ignorada pelo git); ver curadoria/READ
 | `pnpm test` | Resumo do histórico, filtro de sites, e a ponte (coleta substitui a anterior, 403 para páginas web e Host falso) |
 | `pnpm typecheck` | Tipos em todos os pacotes |
 | `pnpm home:verify` | `curadoria/homepage.tsx` transpila, avalia e renderiza só com React |
-| `pnpm extension:test` | No Chrome headless: worker registra, nova aba renderiza o estado vazio, a porta responde, `start` com a ponte desligada falha com mensagem clara |
+| `pnpm extension:test` | No Chrome headless: worker registra, a página do Diário renderiza o estado vazio, a porta responde, `start` com a ponte desligada falha com mensagem clara |
 
 ## Privacidade
 

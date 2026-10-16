@@ -3,7 +3,7 @@ import { DEFAULT_BRIDGE_URL, sanitizeBridgeUrl } from "./bridge";
 
 /** Everything the extension persists, in one place (all in chrome.storage.local). */
 export const KEYS = {
-  /** Last homepage received from the bridge, so a new tab paints with the bridge off. */
+  /** Last homepage received from the bridge, so the home page paints with the bridge off. */
   homepage: "homepageData",
   blockedSites: "blockedSites",
   autoCollect: "autoCollect",

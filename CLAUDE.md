@@ -2,11 +2,12 @@
 
 Este fork não chama nenhuma API de LLM. **Quem faz a curadoria da home é você, aqui no chat.**
 A extensão só junta o material que apenas o navegador enxerga (histórico e páginas logadas) e a
-nova aba renderiza o arquivo que você escrever.
+página do Diário renderiza o arquivo que você escrever. Ela não é mais a nova aba: abre quando o
+Chrome inicia e pelo ícone da extensão.
 
 ```
 extensão ──POST /collect──▶ curadoria/coleta/        (você lê)
-você     ───────escreve───▶ curadoria/homepage.tsx   (a nova aba renderiza, recarrega sozinha)
+você     ───────escreve───▶ curadoria/homepage.tsx   (o Diário renderiza, recarrega sozinho)
 ```
 
 Tudo em `curadoria/` é privado (histórico e páginas do usuário) e está no `.gitignore`. Nunca

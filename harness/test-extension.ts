@@ -3,7 +3,7 @@
  * of the system the Bun harness can't reach:
  *
  *   1. the MV3 service worker registers,
- *   2. the new-tab override renders (the empty state on a fresh profile),
+ *   2. the home page renders (the empty state on a fresh profile),
  *   3. the worker answers `subscribe` on the collector port with a snapshot,
  *   4. `start` with the bridge offline fails cleanly with an error message,
  *   5. `chrome.history` is readable, so the `history` permission is real,
@@ -126,7 +126,7 @@ try {
   }
   check("MV3 service worker registered", Boolean(sw), sw?.url.split("/").pop());
 
-  // ---- 2. new-tab override renders ----------------------------------------
+  // ---- 2. home page renders -----------------------------------------------
   const targets: any[] = await getJson("/json/list");
   const blank = targets.find((t) => t.type === "page");
   if (!blank) throw new Error("no page target to navigate");
@@ -134,7 +134,7 @@ try {
   const page = await cdp(blank.webSocketDebuggerUrl);
   await page.send("Runtime.enable");
   await page.send("Page.enable");
-  const nav = await page.send("Page.navigate", { url: `chrome-extension://${extId}/newtab.html` });
+  const nav = await page.send("Page.navigate", { url: `chrome-extension://${extId}/home.html` });
   if (nav.result?.errorText) throw new Error(`navigate failed: ${nav.result.errorText}`);
 
   let href = "";
@@ -148,7 +148,7 @@ try {
       /* navigation in flight */
     }
   }
-  check("new-tab override loads", href.startsWith("chrome-extension://"), href);
+  check("home page loads", href.startsWith("chrome-extension://"), href);
 
   let bodyText = "";
   for (let i = 0; i < 60 && !/Sua home ainda/i.test(bodyText); i++) {
@@ -230,11 +230,11 @@ export default function PersonalizedHomepage() { return <h1>${title}</h1>; }`;
     writeFileSync(bridge.files.homepage, component("primeira versao"));
     await page.send("Page.reload");
     check(
-      "new tab picks up homepage.tsx written to disk",
+      "home page picks up homepage.tsx written to disk",
       await until(async () => (await stored()).includes("primeira versao")),
     );
     check(
-      "new tab shows the bridge as connected",
+      "home page shows the bridge as connected",
       await until(async () => /Claude conectado/.test(await page.evaluate<string>("document.body.innerText"))),
     );
 

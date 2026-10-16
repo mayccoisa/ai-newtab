@@ -10,5 +10,5 @@ pnpm typecheck
 ```
 
 - `entrypoints/background.ts`: the service worker that hosts the build
-- `entrypoints/newtab/`: the new-tab UI, a thin client onto the worker
+- `entrypoints/home/`: the home page (opens on Chrome startup and from the toolbar icon), a thin client onto the worker
 - `lib/`: the build manager, the two browser tools, storage and the page↔worker protocol

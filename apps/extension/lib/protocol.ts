@@ -1,5 +1,5 @@
 /**
- * Protocol between the new-tab page(s) and the service worker.
+ * Protocol between the home page(s) and the service worker.
  *
  * The worker owns exactly one collection at a time and is the single source of
  * truth for its state (see collector.ts). Tabs are thin, disposable views: they
