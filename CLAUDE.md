@@ -20,18 +20,25 @@ commite nada daquela pasta, nunca cole o conteúdo de `coleta/` fora desta sess�
    edite `curadoria/homepage.tsx` direto, reaproveitando os itens e links que já estão nele. Não
    precisa de coleta nova. A aba aberta atualiza em poucos segundos.
 3. **Pedido de conteúdo novo** ("atualiza a home", "o que saiu hoje"): peça uma coleta nova
-   criando o arquivo `curadoria/pedido-coleta` (ou `curl -X POST http://127.0.0.1:4317/request-collect`)
-   e espere `curadoria/coleta/indice.json` ganhar um `collectedAt` mais novo que o pedido. A
-   extensão atende em até ~1 minuto, abre as páginas numa janela em segundo plano e envia.
-   Se a coleta já for recente (poucas horas) e o usuário não pedir "do zero", use a que existe.
+   com **`pnpm coleta`** (`run_in_background`): ele sobe a ponte se precisar, registra o pedido,
+   espera a coleta chegar (até 10 min, `--max N` para mais) e imprime o que veio e o que falhou.
+   A extensão vê o pedido em até ~1 minuto e leva uns 4 para 16 páginas. Saiu com 1? O Chrome
+   não está aberto com a extensão carregada: avise o usuário. `pnpm coleta --status` só mostra
+   o estado. Se a coleta já for recente (poucas horas) e o usuário não pedir "do zero", use a que existe.
 4. **Leia a coleta** em `curadoria/coleta/`:
    - `historico.json`: ranking dos sites mais visitados (`totalSitesSeen` diz o que ficou de fora);
    - `indice.json`: páginas lidas (arquivo, URL final, título, bytes) e as que falharam, com o motivo;
+   - `capas.json`: URL de cada matéria linkada → a foto de capa dela (`og:image`). É a fonte das
+     fotos das notícias: casar o link do item com a chave daqui.
    - `paginas/*.html`: HTML limpo de cada página. Páginas grandes: use `Grep` para achar a região
      e só então `Read` com `offset`/`limit`.
 5. **Escreva `curadoria/homepage.tsx`** seguindo o contrato abaixo e rode
    `pnpm home:verify` (precisa do Bun) para provar que renderiza. Sem Bun, no mínimo
    `node -e` com o `sucrase` do repositório, ou confira se o arquivo compila pela extensão.
+   **Fotos:** a home tem o bloco `// capas:inicio` … `// capas:fim` com `const CAPAS`, e cada
+   item usa `n.img || CAPAS[n.u]`. Depois de escolher os itens, rode `pnpm capas --aplicar`:
+   ele abre cada link, lê o `og:image` e reescreve o bloco. Listagem quase nunca traz a foto
+   da matéria; sem esse passo a home sai só com texto.
 6. Responda em português do Brasil, em duas frases: o que montou e por quê. Não cole o código.
 
 ## Preferências fixas do usuário
@@ -78,6 +85,8 @@ lidos`) já são filtrados pela extensão; não tente contornar.
 ```bash
 pnpm install        # uma vez
 pnpm bridge         # ponte local em 127.0.0.1:4317 (deixe rodando)
+pnpm coleta         # pede coleta nova à extensão e espera chegar (sobe a ponte se preciso)
+pnpm capas --aplicar # foto de capa (og:image) de cada matéria da home, gravada no bloco CAPAS
 pnpm build          # extensão em apps/extension/.output/chrome-mv3 (Load unpacked)
 pnpm typecheck
 pnpm test           # bun test harness/ + testes da ponte (node --test)

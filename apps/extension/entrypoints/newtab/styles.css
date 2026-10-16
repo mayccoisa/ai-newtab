@@ -10,6 +10,82 @@ body {
   margin: 0;
 }
 
+/* ---- Controles da nova aba (canto superior direito, por cima da home) ---- */
+.nt-bar {
+  --nt-bg: rgba(255, 255, 255, 0.86);
+  --nt-line: #e4e4e7;
+  --nt-ink: #3f3f46;
+  --nt-hov: #f4f4f5;
+  position: fixed;
+  top: 18px;
+  right: 20px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--nt-line);
+  border-radius: 10px;
+  background: var(--nt-bg);
+  backdrop-filter: blur(8px);
+  font: 500 12.5px/1 "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: var(--nt-ink);
+}
+@media (prefers-color-scheme: dark) {
+  .nt-bar {
+    --nt-bg: rgba(23, 23, 27, 0.86);
+    --nt-line: #2a2a31;
+    --nt-ink: #d4d4d8;
+    --nt-hov: #24242b;
+  }
+}
+.nt-dot {
+  width: 7px;
+  height: 7px;
+  margin: 0 7px 0 9px;
+  border-radius: 50%;
+  background: #a1a1aa;
+}
+.nt-dot.on {
+  background: #22c55e;
+}
+.nt-btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 7px;
+  cursor: pointer;
+  color: inherit;
+  transition: background 0.15s;
+}
+.nt-btn:hover:not(:disabled) {
+  background: var(--nt-hov);
+}
+.nt-btn:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 1px;
+}
+.nt-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.nt-icon {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+}
+.nt-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: hb-pulse 1.2s ease-in-out infinite;
+}
+
 @keyframes hb-pulse {
   0%,
   100% {

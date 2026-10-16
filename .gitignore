@@ -23,3 +23,6 @@ harness/out/
 # Curadoria: your history and pages you read while logged in. Private; only the README is tracked.
 curadoria/*
 !curadoria/README.md
+# Configuração da home (sem dado privado): vai junto para os outros computadores.
+!curadoria/fontes.json
+!curadoria/preferencias.md

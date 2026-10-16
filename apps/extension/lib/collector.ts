@@ -19,6 +19,7 @@ import {
   type CollectState,
   type PageMsg,
 } from "./protocol";
+import { articleLinks, collectCovers } from "./covers";
 import { scrapeUrls } from "./scraper";
 import { KEYS, extensionStore, loadSettings } from "./storage";
 
@@ -201,8 +202,15 @@ export class CollectManager {
     this.log(`páginas lidas: ${pages.length}, falhas: ${failed.length}`);
     aborted();
 
+    // The photo of each story, from its own og:image — listing pages rarely keep it.
+    const articles = [...new Set(pages.flatMap((page) => articleLinks(page.html, page.finalUrl || page.url)))];
+    this.phase("scraping", `fotos de ${articles.length} matéria(s)`);
+    const covers = await collectCovers(articles, (url) => isAllowedUrl(url, blocked), signal);
+    this.log(`fotos de capa: ${Object.keys(covers).length} de ${articles.length} matérias`);
+    aborted();
+
     this.phase("sending", "ponte local");
-    const payload: CollectPayload = { collectedAt: new Date().toISOString(), history, pages, failed };
+    const payload: CollectPayload = { collectedAt: new Date().toISOString(), history, pages, failed, covers };
     const sent = await bridge.collect(payload);
     if (!sent) throw new Error("A ponte local recusou ou não respondeu ao envio da coleta.");
     this.log(`enviado: ${sent.pages} página(s)`);

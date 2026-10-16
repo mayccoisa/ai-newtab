@@ -24,8 +24,8 @@ export function HomepagePreview({ code }: { code: string }) {
 
   return (
     <SandpackProvider files={files} template="react" options={{ autorun: true }}>
-      <SandpackLayout style={{ height: "100vh", width: "100vw" }}>
-        <SandpackPreview style={{ height: "100%" }} />
+      <SandpackLayout style={{ height: "100vh", width: "100vw", border: 0, borderRadius: 0 }}>
+        <SandpackPreview style={{ height: "100%" }} showOpenInCodeSandbox={false} showRefreshButton={false} />
       </SandpackLayout>
     </SandpackProvider>
   );

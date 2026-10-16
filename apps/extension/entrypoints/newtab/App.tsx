@@ -128,33 +128,21 @@ export default function App() {
 
   return (
     <div style={{ height: "100vh", width: "100vw" }}>
-      <div style={{ position: "fixed", top: 20, right: 20, zIndex: 999, display: "flex", gap: 8, alignItems: "center" }}>
+      {/* Discreta e no canto: a home é a protagonista, estes controles são de manutenção. */}
+      <div className="nt-bar">
         <span
+          className={"nt-dot" + (homepage.online ? " on" : "")}
           title={homepage.online ? "Ponte local conectada: edições do Claude aparecem aqui sozinhas" : "Ponte offline. Rode: pnpm bridge"}
-          style={{ ...btn, backgroundColor: "rgba(0,0,0,0.55)", cursor: "default", fontSize: 12, padding: "6px 10px" }}
-        >
-          {homepage.online ? "● Claude conectado" : "○ ponte offline"}
-        </span>
+          aria-label={homepage.online ? "Claude conectado" : "Ponte offline"}
+        />
         {state.running ? (
-          <button
-            style={{ ...btn, backgroundColor: "#0a7", display: "flex", alignItems: "center", gap: 8 }}
-            onClick={() => setViewProgress(true)}
-            title="Ver progresso da coleta"
-          >
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                background: "white",
-                animation: "hb-pulse 1.2s ease-in-out infinite",
-              }}
-            />
-            Coletando… {Math.min(state.stepIndex + 1, COLLECT_STEPS.length)}/{COLLECT_STEPS.length}
+          <button className="nt-btn" onClick={() => setViewProgress(true)} title="Ver progresso da coleta">
+            <span className="nt-pulse" />
+            Coletando {Math.min(state.stepIndex + 1, COLLECT_STEPS.length)}/{COLLECT_STEPS.length}
           </button>
         ) : (
           <button
-            style={{ ...btn, opacity: homepage.online ? 1 : 0.5 }}
+            className="nt-btn"
             disabled={!homepage.online}
             onClick={start}
             title={
@@ -163,11 +151,17 @@ export default function App() {
                 : "Junta histórico e páginas novas para o Claude usar na próxima atualização"
             }
           >
-            {homepage.collectRequested ? "⏳ Coleta pedida" : "↻ Coletar dados"}
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7" />
+            </svg>
+            {homepage.collectRequested ? "Coleta pedida" : "Coletar"}
           </button>
         )}
-        <button style={btn} onClick={() => setShowSettings(true)} title="Configurações">
-          ⚙️
+        <button className="nt-btn nt-icon" onClick={() => setShowSettings(true)} title="Configurações" aria-label="Configurações">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+          </svg>
         </button>
       </div>
 

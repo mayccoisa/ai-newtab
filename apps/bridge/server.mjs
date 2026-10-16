@@ -62,6 +62,9 @@ export function createBridge({ dir, port = DEFAULT_PORT }) {
       return { file, url: page.url, finalUrl: page.finalUrl ?? page.url, title: page.title, bytes: Buffer.byteLength(page.html) };
     });
     writeFileSync(join(files.coleta, "historico.json"), JSON.stringify(payload.history, null, 2));
+    if (payload.covers && typeof payload.covers === "object") {
+      writeFileSync(join(files.coleta, "capas.json"), JSON.stringify(payload.covers, null, 2));
+    }
     writeFileSync(
       join(files.coleta, "indice.json"),
       JSON.stringify({ collectedAt: payload.collectedAt, pages: index, failed: payload.failed }, null, 2),

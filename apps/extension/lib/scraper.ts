@@ -92,6 +92,17 @@ async function createScraperWindow(): Promise<number> {
   return win.id;
 }
 
+/** Resolve to null if `promise` doesn't settle in `ms`, so one stuck page can't hang the collection. */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms);
+    promise.then(
+      (value) => { clearTimeout(timer); resolve(value); },
+      () => { clearTimeout(timer); resolve(null); },
+    );
+  });
+}
+
 async function scrapeUrl(
   url: string,
   windowId: number,
@@ -108,10 +119,10 @@ async function scrapeUrl(
     // Wait for the tab to load with timeout
     const loadComplete = await waitForTabLoad(tab.id!, opts.timeout);
 
+    // News sites full of ads and trackers often never reach "complete", even with
+    // the articles already on screen. Read what loaded instead of dropping the page.
     if (!loadComplete) {
-      console.error(`Timeout waiting for ${url} to load`);
-      await browser.tabs.remove(tab.id!);
-      return null;
+      console.warn(`Timeout waiting for ${url} to load; extracting what is there`);
     }
 
     // Additional delay for dynamic content
@@ -125,10 +136,13 @@ async function scrapeUrl(
     while (retryCount <= opts.maxRetries && !result) {
       try {
         // Scrolls to trigger lazy content, then returns { title, html }.
-        const injectionResults = await browser.scripting.executeScript({
-          target: { tabId: tab.id! },
-          files: ["/content-scripts/scraper.js"],
-        });
+        const injectionResults = await withTimeout(
+          browser.scripting.executeScript({
+            target: { tabId: tab.id! },
+            files: ["/content-scripts/scraper.js"],
+          }),
+          20_000
+        );
 
         if (
           injectionResults &&
@@ -156,8 +170,8 @@ async function scrapeUrl(
       retryCount++;
     }
 
-    // Close the tab
-    await browser.tabs.remove(tab.id!);
+    // Close the tab (it may already be gone)
+    await browser.tabs.remove(tab.id!).catch(() => {});
 
     if (result) {
       return {
@@ -200,7 +214,8 @@ export async function scrapeUrls(
       const batch = urls.slice(i, i + opts.concurrentTabs);
 
       const batchResults = await Promise.all(
-        batch.map(async (url) => ({ url, page: await scrapeUrl(url, windowId, opts) }))
+        // Hard ceiling per page: load + delay + every retry, plus slack.
+        batch.map(async (url) => ({ url, page: await withTimeout(scrapeUrl(url, windowId, opts), 120_000) }))
       );
 
       for (const { url, page } of batchResults) {

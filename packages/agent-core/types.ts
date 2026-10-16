@@ -71,4 +71,6 @@ export interface CollectPayload {
   history: GetHistoryResult;
   pages: ScrapedPage[];
   failed: Array<{ url: string; reason: string }>;
+  /** Article URL → its og:image, for the stories the scraped pages link to. */
+  covers?: Record<string, string>;
 }
