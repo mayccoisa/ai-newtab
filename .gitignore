@@ -26,3 +26,4 @@ curadoria/*
 # Configuração da home (sem dado privado): vai junto para os outros computadores.
 !curadoria/fontes.json
 !curadoria/preferencias.md
+.previa/

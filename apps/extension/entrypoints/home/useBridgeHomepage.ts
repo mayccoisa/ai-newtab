@@ -13,6 +13,8 @@ export interface BridgeHomepageState {
   online: boolean;
   /** `curadoria/pedido-coleta` is waiting for the worker's next heartbeat. */
   collectRequested: boolean;
+  /** ISO da última coleta que chegou à ponte, ou null. Alimenta o aviso de edição velha. */
+  lastCollectAt: string | null;
 }
 
 /**
@@ -27,6 +29,7 @@ export function useBridgeHomepage(bridgeUrl: string | null): BridgeHomepageState
     ready: false,
     online: false,
     collectRequested: false,
+    lastCollectAt: null,
   });
 
   useEffect(() => {
@@ -64,6 +67,7 @@ export function useBridgeHomepage(bridgeUrl: string | null): BridgeHomepageState
         code: code ?? s.code,
         online: true,
         collectRequested: status.collectRequested,
+        lastCollectAt: status.lastCollectAt ?? s.lastCollectAt,
       }));
     };
 

@@ -5,6 +5,8 @@ import { DEFAULT_BRIDGE_URL } from "@/lib/bridge";
 import { COLLECT_STEPS } from "@/lib/protocol";
 import { loadSettings, saveSetting } from "@/lib/storage";
 import { toRenderable } from "@/lib/transpile";
+import { AvisoPonte } from "./components/AvisoPonte";
+import { Comando } from "./components/Comando";
 import { CollectProgress } from "./components/CollectProgress";
 import { HomepagePreview } from "./components/HomepagePreview";
 import { SettingsModal } from "./components/SettingsModal";
@@ -12,7 +14,6 @@ import { btn, errorBox } from "./components/ui";
 import { useBridgeHomepage } from "./useBridgeHomepage";
 import { useCollect } from "./useCollect";
 
-const mono = { fontFamily: "ui-monospace, monospace", background: "#f1f1f1", padding: "2px 6px", borderRadius: 3 } as const;
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -25,6 +26,8 @@ export default function App() {
   const [viewProgress, setViewProgress] = useState(false);
   /** The error the user dismissed, so a stale banner doesn't linger. */
   const [dismissedError, setDismissedError] = useState<string | null>(null);
+  /** Aviso de ponte desligada que o leitor dispensou nesta sessão. */
+  const [avisoPonteFora, setAvisoPonteFora] = useState(false);
 
   const { state, start, cancel } = useCollect();
   const homepage = useBridgeHomepage(bridgeUrl);
@@ -33,6 +36,11 @@ export default function App() {
   useEffect(() => {
     if (!state.running) setViewProgress(false);
   }, [state.running]);
+
+  // Religou: o próximo desligamento volta a avisar, em vez de ficar calado.
+  useEffect(() => {
+    if (homepage.online) setAvisoPonteFora(false);
+  }, [homepage.online]);
 
   useEffect(() => {
     (async () => {
@@ -87,8 +95,12 @@ export default function App() {
         </p>
         <ol style={{ color: "#444", lineHeight: 1.9, paddingLeft: 20 }}>
           <li>
-            Na pasta do projeto, rode <code style={mono}>pnpm bridge</code>{" "}
-            {homepage.online ? <b style={{ color: "#0a7" }}>(✓ ponte conectada)</b> : <b style={{ color: "#a02620" }}>(ponte offline)</b>}
+            Na pasta do projeto, rode <Comando>pnpm bridge</Comando>{" "}
+            {homepage.online ? (
+              <b style={{ color: "#0a7" }}>✓ ponte conectada</b>
+            ) : (
+              <b style={{ color: "#a02620" }}>— ainda não respondeu</b>
+            )}
           </li>
           <li>Clique em <b>Coletar dados</b> abaixo.</li>
           <li>No chat do Claude Code, peça: <i>"monta minha home"</i>. Ela aparece aqui sozinha.</li>
@@ -135,6 +147,7 @@ export default function App() {
           title={homepage.online ? "Ponte local conectada: edições do Claude aparecem aqui sozinhas" : "Ponte offline. Rode: pnpm bridge"}
           aria-label={homepage.online ? "Claude conectado" : "Ponte offline"}
         />
+        {!homepage.online && <span className="nt-off">ponte desligada</span>}
         {state.running ? (
           <button className="nt-btn" onClick={() => setViewProgress(true)} title="Ver progresso da coleta">
             <span className="nt-pulse" />
@@ -164,6 +177,8 @@ export default function App() {
           </svg>
         </button>
       </div>
+
+      {!homepage.online && !avisoPonteFora && <AvisoPonte onFechar={() => setAvisoPonteFora(true)} />}
 
       {showError && (
         <div

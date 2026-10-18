@@ -8,6 +8,13 @@ import type { RawSiteMetadata } from "@homepage/agent-core";
 /** curadoria/homepage.tsx — the file Claude Code writes and the extension renders. */
 export const OUT_PATH = join(import.meta.dir, "..", "curadoria", "homepage.tsx");
 
+/** O kit de leitura que a home importa como "./kit", versionado no repositório. */
+export const KIT_PATH = join(
+  import.meta.dir,
+  "..",
+  "apps/extension/entrypoints/home/kit/diario-kit.tsx",
+);
+
 const DAY = 24 * 60 * 60 * 1000;
 
 /** Stand-in for what the extension's lib/history.ts produces from chrome.history. */

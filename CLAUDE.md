@@ -33,9 +33,9 @@ commite nada daquela pasta, nunca cole o conteúdo de `coleta/` fora desta sess�
      fotos das notícias: casar o link do item com a chave daqui.
    - `paginas/*.html`: HTML limpo de cada página. Páginas grandes: use `Grep` para achar a região
      e só então `Read` com `offset`/`limit`.
-5. **Escreva `curadoria/homepage.tsx`** seguindo o contrato abaixo e rode
-   `pnpm home:verify` (precisa do Bun) para provar que renderiza. Sem Bun, no mínimo
-   `node -e` com o `sucrase` do repositório, ou confira se o arquivo compila pela extensão.
+5. **Escreva `curadoria/homepage.tsx`** seguindo o contrato abaixo — só conteúdo, o layout é do
+   kit — e rode `pnpm home:verify` (precisa do Bun) para provar que renderiza; ele carrega o kit
+   junto, igual à extensão. Sem Bun, no mínimo `node -e` com o `sucrase` do repositório.
    **Fotos:** a home tem o bloco `// capas:inicio` … `// capas:fim` com `const CAPAS`, e cada
    item usa `n.img || CAPAS[n.u]`. Depois de escolher os itens, rode `pnpm capas --aplicar`:
    ele abre cada link, lê o `og:image` e reescreve o bloco. Listagem quase nunca traz a foto
@@ -55,14 +55,46 @@ específica (um feed, uma lista, um painel) for melhor que a raiz. Máximo de 16
 
 ## Contrato do componente
 
-- Um componente funcional chamado `PersonalizedHomepage`, com `export default`.
-- `import React from 'react'` no topo. **React é o único import permitido**: sem bibliotecas, sem
-  arquivo de CSS, sem pacote de ícones. Estilo inline ou um objeto de estilos.
-- Todo link é uma URL absoluta **tirada das páginas coletadas**. Nunca invente URL, nunca deixe
-  `href="#"`. Imagem só quando a página realmente a associa ao item.
-- Responsivo, funciona em claro e escuro, com hover e transição onde ajudar. Emoji serve como
-  marcador de categoria.
-- Sem `fetch`, sem scripts, sem dados sensíveis fora do que está na coleta.
+A home carrega **só conteúdo**. O jeito de ler mora no kit versionado
+`apps/extension/entrypoints/home/kit/diario-kit.tsx`, que a home importa como `'./kit'`.
+**Não escreva CSS nem layout em `curadoria/homepage.tsx`**: manchete, colunas, modo Jornal ×
+Portal, tamanho do texto, "já li", abas e avisos de tela já estão no kit, e cada rodada que
+reescreve isso faz o visual oscilar.
+
+```tsx
+import React from 'react';
+import { Diario, type Assunto, type Faixa, type Item } from './kit';
+
+const ITENS: Item[] = [ /* ... */ ];
+const ASSUNTOS: Assunto[] = [{ id: 'games', nome: 'Games', ic: 'controle' }];
+
+export default function PersonalizedHomepage() {
+  return <Diario leitor="Maycon" coletaEm={/* ISO de indice.json */} assuntos={ASSUNTOS}
+                 itens={ITENS} capas={CAPAS} faixas={FAIXAS} falhas={['Hacker News']} />;
+}
+```
+
+- Um componente funcional `PersonalizedHomepage`, com `export default`.
+- **Só dois imports: `react` e `'./kit'`.** Sem biblioteca, sem arquivo de CSS, sem ícones.
+- `Item` é `{ a, t, u, s, dek?, tag?, img? }`: assunto, título, URL absoluta, fonte, linha fina,
+  etiqueta e foto. A ordem dentro de um assunto é a ordem de importância: o primeiro item vira a
+  manchete daquela aba, os seis seguintes viram chamadas e o resto vira breve.
+- `coletaEm` é o `collectedAt` de `coleta/indice.json`, em ISO. É ele que datilografa a edição e
+  faz a home avisar sozinha quando passou de 18 horas — **não invente a data**.
+- `falhas` são as páginas de `indice.json > failed`, com o nome que o leitor reconhece. Passe
+  sempre: é o que impede a home de parecer completa quando não está.
+- `faixas` são listas curtas que não são notícia (agenda, promoções), com `assunto` para aparecer
+  dentro de uma aba. `forma: 'tiras'` para cartões lado a lado, padrão lista.
+- `ic` de um assunto é um ícone do kit: `grade`, `controle`, `urna`, `alvo`, `ia`, `chip`,
+  `check`, `claquete`, `agenda`, `etiqueta`, `texto`, `olho`, `jornal`.
+- Todo link é URL absoluta **tirada das páginas coletadas**. Nunca invente URL, nunca `href="#"`.
+  Imagem só quando a página realmente a associa ao item.
+- Precisa do bloco `// capas:inicio` … `// capas:fim` com `const CAPAS`, porque é o que
+  `pnpm capas --aplicar` reescreve. Passe `capas={CAPAS}`; o kit casa o link com a foto.
+
+**Mudança de visual é no kit, não na home.** Pedido como "aumenta a entrelinha", "manchete maior",
+"modo escuro mais contrastado" se resolve em `diario-kit.tsx` e vale para todas as edições. Depois
+de mexer no kit: `pnpm build` e recarregar a extensão em `chrome://extensions`.
 
 ## Julgamento editorial
 

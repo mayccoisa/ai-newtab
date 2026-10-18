@@ -1,8 +1,14 @@
 # AI Homepage · versão Claude Code (sem chave de API)
 
-Fork de [ThariqS/ai-newtab](https://github.com/ThariqS/ai-newtab). Um diário montado a partir
-do que você realmente acompanha, **mas quem faz a curadoria é o Claude Code, no chat**. Não existe
-chave de API, token de LLM nem custo por build: a extensão só coleta, o chat escreve a home.
+Fork de **[ThariqS/ai-newtab](https://github.com/ThariqS/ai-newtab)** — e eu estou adorando essa
+ideia. O mérito do conceito é do [Thariq](https://github.com/ThariqS): montar a página inicial do
+navegador a partir do que a pessoa realmente acompanha, em vez de um feed decidido por outra
+pessoa. Foi a primeira coisa que me fez olhar para a nova aba como um lugar de ler, e não de
+clicar. Este repositório é só a minha versão disso, com duas mudanças de rumo e nenhuma pretensão
+de substituir o original — se você chegou aqui primeiro, **vá ver o dele**.
+
+O que eu mudei: aqui **não existe chave de API**. Quem faz a curadoria é o Claude Code, no chat.
+A extensão só coleta, e o Diário renderiza o que o Claude escreveu.
 
 ```
  navegador (extensão)              disco (curadoria/)                 chat do Claude Code
@@ -11,6 +17,32 @@ chave de API, token de LLM nem custo por build: a extensão só coleta, o chat e
                                   coleta/paginas/*.html              escreve a home
  Diário renderiza          ◀────  homepage.tsx              ◀──────  "deixa mais enxuta"
 ```
+
+## Dois modos de leitura
+
+A home abre em **Jornal** e troca para **Portal** num clique, no topo da página. A escolha fica
+guardada no navegador, junto com o tamanho do texto e o que você já leu.
+
+| | Jornal | Portal |
+|---|---|---|
+| Tipografia | serifada, manchete e linha fina | sem serifa, título curto |
+| Grade | colunas com fio no meio, como página de jornal | cards numa grade |
+| Para quê | sentar e ler | varrer e escolher |
+
+Os dois saem do mesmo kit versionado (`apps/extension/entrypoints/home/kit/diario-kit.tsx`), não
+de código reescrito a cada dia: a home que o Claude escreve carrega **só conteúdo**, e o jeito de
+ler é do repositório. Na prática, pedir "atualiza a home" ficou barato e o visual parou de
+oscilar de uma edição para a outra.
+
+## A página diz o que está acontecendo
+
+O que a home sabe e você não, ela fala — em vez de parecer vazia ou completa quando não está:
+
+- **edição velha**: passou de 18 horas, a página avisa e diz o que pedir no chat;
+- **página que falhou na coleta**: aparece pelo nome, porque o que estaria nela não está ali;
+- **assunto sem item**: a aba continua, dizendo que nada chegou daquele assunto;
+- **ponte desligada**: a aba explica que está mostrando a última edição salva e entrega o comando
+  pronto para copiar, em vez de só desabilitar o botão.
 
 ## O que mudou em relação ao original
 
@@ -21,6 +53,8 @@ chave de API, token de LLM nem custo por build: a extensão só coleta, o chat e
 | Rebuild automático gasta API | Coleta automática é de graça (só reabre as páginas) |
 | Instruções e modelo nas Configurações | "deixa estilo jornal" no chat; fica salvo em `curadoria/preferencias.md` |
 | A home só muda quando você reconstrói | **Muda ao vivo**: o Claude edita o arquivo e a aba atualiza em segundos |
+| O layout vem junto com o conteúdo, reescrito a cada vez | **Kit versionado** com dois modos de leitura; a home carrega só conteúdo |
+| Ponte offline = botão desabilitado | A aba diz o que parou e dá o comando para copiar |
 
 ## Instalar
 
@@ -64,7 +98,10 @@ não é onde está o conteúdo. Veja [CLAUDE.md](./CLAUDE.md) para o roteiro com
 packages/agent-core   filtro de sites e resumo do histórico (puro, sem chrome.* nem node:*)
 apps/extension        a extensão MV3 (WXT + React): coletor e a página do Diário
 apps/bridge           ponte local (Node puro, sem dependências)
-harness               testes do Bun e teste da extensão no Chrome headless
+harness               testes do Bun, prévia estática e teste da extensão no Chrome headless
+
+apps/extension/entrypoints/home/kit/diario-kit.tsx    o layout do Diário (os dois modos)
+curadoria/homepage.tsx                                 só o conteúdo da edição (não versionado)
 ```
 
 ```bash
@@ -72,8 +109,13 @@ pnpm dev            # WXT com hot reload
 pnpm typecheck
 pnpm test           # bun test harness/ + node --test da ponte
 pnpm home:verify    # curadoria/homepage.tsx renderiza?
+pnpm previa         # desenha a edição em .previa/jornal.html e .previa/portal.html
 ```
 
-## Licença
+Mexeu no kit? `pnpm previa` mostra o resultado nos dois modos sem precisar carregar a extensão.
 
-MIT, como o projeto original.
+## Licença e crédito
+
+MIT, como o projeto original. O código que veio de [ThariqS/ai-newtab](https://github.com/ThariqS/ai-newtab)
+continua sob a licença dele, e o histórico deste fork preserva os commits originais — dá para ver
+de onde cada coisa veio com `git log`. Obrigado pela ideia. 🙏
