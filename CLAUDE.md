@@ -15,8 +15,9 @@ commite nada daquela pasta, nunca cole o conteúdo de `coleta/` fora desta sess�
 
 ## Quando o usuário pedir para montar ou mudar a home
 
-1. **Confira a ponte.** `curl -s http://127.0.0.1:4317/health`. Se não responder, suba com
-   `pnpm bridge` em segundo plano (`run_in_background`).
+1. **Confira a ponte.** `pnpm ponte` resolve isso de uma vez: ele responde se já está no ar, sobe
+   em segundo plano se não, e sai. (Na máquina do usuário ela costuma subir junto com o login —
+   veja **Instalar** no README. `pnpm bridge` é só para ver o erro em primeiro plano.)
 2. **Pedido só de visual ou ajuste** ("deixa mais enxuta", "põe o clima no topo", "tema escuro"):
    edite `curadoria/homepage.tsx` direto, reaproveitando os itens e links que já estão nele. Não
    precisa de coleta nova. A aba aberta atualiza em poucos segundos.
@@ -77,8 +78,12 @@ export default function PersonalizedHomepage() {
 - Um componente funcional `PersonalizedHomepage`, com `export default`.
 - **Só dois imports: `react` e `'./kit'`.** Sem biblioteca, sem arquivo de CSS, sem ícones.
 - `Item` é `{ a, t, u, s, dek?, tag?, img? }`: assunto, título, URL absoluta, fonte, linha fina,
-  etiqueta e foto. A ordem dentro de um assunto é a ordem de importância: o primeiro item vira a
-  manchete daquela aba, os seis seguintes viram chamadas e o resto vira breve.
+  etiqueta e foto. A ordem dentro de um assunto é a ordem de importância: os **três primeiros**
+  abrem a aba lado a lado, os seis seguintes viram chamadas e o resto vira breve.
+- **Os três que abrem aparecem com a linha fina**, então prefira ali itens cuja página traz um
+  resumo. Se o melhor item do dia não tiver, deixe sem: `dek` inventado é o erro mais caro que
+  esta home pode cometer. Listagem que só publica o título (a home da IGN, por exemplo) não dá
+  linha fina; para ter uma, fixe a página da matéria em `curadoria/fontes.json` antes da coleta.
 - `coletaEm` é o `collectedAt` de `coleta/indice.json`, em ISO. É ele que datilografa a edição e
   faz a home avisar sozinha quando passou de 18 horas — **não invente a data**.
 - `falhas` são as páginas de `indice.json > failed`, com o nome que o leitor reconhece. Passe
@@ -117,7 +122,8 @@ lidos`) já são filtrados pela extensão; não tente contornar.
 
 ```bash
 pnpm install        # uma vez
-pnpm bridge         # ponte local em 127.0.0.1:4317 (deixe rodando)
+pnpm ponte          # garante a ponte no ar (127.0.0.1:4317) em segundo plano e devolve o terminal
+pnpm bridge         # a mesma ponte em primeiro plano, para ver o erro
 pnpm coleta         # pede coleta nova à extensão e espera chegar (sobe a ponte se preciso)
 pnpm capas --aplicar # foto de capa (og:image) de cada matéria da home, gravada no bloco CAPAS
 pnpm build          # extensão em apps/extension/.output/chrome-mv3 (Load unpacked)

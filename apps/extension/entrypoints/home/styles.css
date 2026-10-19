@@ -10,14 +10,17 @@ body {
   margin: 0;
 }
 
-/* ---- Controles da nova aba (canto superior direito, por cima da home) ---- */
+/* ---- Controles da extensão (canto inferior direito, por cima da home) ----
+   Ficavam no topo à direita, onde hoje moram os ajustes de leitura do próprio
+   Diário. Estes aqui são manutenção (ponte, coleta, configurações): consulta
+   rara, então cedem o canto de cima para o que se usa lendo. */
 .nt-bar {
   --nt-bg: rgba(255, 255, 255, 0.86);
   --nt-line: #e4e4e7;
   --nt-ink: #3f3f46;
   --nt-hov: #f4f4f5;
   position: fixed;
-  top: 18px;
+  bottom: 18px;
   right: 20px;
   z-index: 999;
   display: flex;
@@ -358,9 +361,9 @@ body {
   --a-line: #e4c7c3;
   --a-ink: #3f3f46;
   position: fixed;
-  top: 18px;
+  top: 14px;
   left: 20px;
-  right: 420px;
+  right: 220px;
   z-index: 998;
   display: flex;
   align-items: flex-start;
@@ -389,7 +392,7 @@ body {
 @media (max-width: 900px) {
   .nt-aviso {
     right: 20px;
-    top: 58px;
+    top: 56px;
   }
 }
 .nt-aviso-x {

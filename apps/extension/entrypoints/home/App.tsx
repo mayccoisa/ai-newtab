@@ -42,6 +42,29 @@ export default function App() {
     if (homepage.online) setAvisoPonteFora(false);
   }, [homepage.online]);
 
+  /**
+   * O botão "Atualizar" do Diário. A home roda num iframe isolado e não alcança
+   * o chrome.*, então pede por postMessage. Só esta página tem este ouvinte (é
+   * chrome-extension://, inalcançável para páginas da web), e a única coisa que
+   * a mensagem consegue disparar é a mesma coleta do botão da barra — nada que
+   * o leitor já não pudesse fazer com um clique.
+   */
+  useEffect(() => {
+    const ouvir = (e: MessageEvent) => {
+      const dados = e.data as { tipo?: unknown } | null;
+      if (!dados || typeof dados !== "object" || dados.tipo !== "diario:coletar") return;
+
+      const motivo = !homepage.online ? "offline" : state.running ? "rodando" : null;
+      if (!motivo) void start();
+      // Responder é o que impede o botão de dizer "coleta pedida" quando nada
+      // começou: só esta página sabe se a ponte está no ar.
+      const quem = e.source as WindowProxy | null;
+      quem?.postMessage({ tipo: "diario:coleta-estado", ok: !motivo, motivo }, "*");
+    };
+    window.addEventListener("message", ouvir);
+    return () => window.removeEventListener("message", ouvir);
+  }, [homepage.online, state.running, start]);
+
   useEffect(() => {
     (async () => {
       try {
@@ -185,9 +208,10 @@ export default function App() {
           style={{
             ...errorBox,
             position: "fixed",
-            top: 20,
+            // Abaixo do aviso de ponte, e livre dos ajustes de leitura do Diário.
+            top: 62,
             left: 20,
-            right: 420,
+            right: 220,
             zIndex: 999,
             padding: "10px 14px",
             borderRadius: 6,

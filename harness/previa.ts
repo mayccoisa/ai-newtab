@@ -1,74 +1,77 @@
 /**
- * Prévia · desenha a edição atual como HTML estático, para olhar sem o Chrome.
+ * Prévia · abre a edição atual no navegador, interativa, sem carregar extensão.
  *
- * O Diário de verdade roda dentro da extensão, num sandbox. Para ver se a
- * edição está legível — e para comparar os dois modos de leitura lado a lado —
- * não vale carregar extensão a cada ajuste: isto renderiza a mesma home e o
- * mesmo kit no servidor e grava dois arquivos que abrem no navegador.
+ * O Diário de verdade roda dentro da extensão, num sandbox. Para julgar se a
+ * edição está legível — e para comparar os dois modos de leitura — não vale
+ * carregar extensão a cada ajuste no kit. Esta prévia empacota React, o kit e a
+ * home num único HTML que abre direto do disco: os seletores de modo e de
+ * tamanho, o "já li" e as abas funcionam de verdade.
  *
- * O que NÃO aparece aqui: o que depende de clique (trocar de modo pelo seletor,
- * marcar lido, mudar o corpo do texto). Cada arquivo sai fixo num modo.
+ * (A primeira versão era HTML estático, sem JavaScript, e nada respondia ao
+ * clique. Era prévia de leitura, não de uso.)
  *
- * Uso: pnpm previa [caminho-da-home]    → .previa/jornal.html e .previa/portal.html
+ * O que ela NÃO prova: a ponte local, a coleta e os avisos da própria aba da
+ * extensão, que não existem fora dela.
+ *
+ * Uso: pnpm previa [caminho-da-home]   →  .previa/diario.html
  */
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
-import { transform } from "sucrase";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { join, relative } from "node:path";
 import { KIT_PATH, OUT_PATH } from "./node-bridge";
 
 const home = process.argv[2] ?? OUT_PATH;
 const saida = join(import.meta.dir, "..", ".previa");
+// A pasta de obras fica dentro do harness, que é o workspace que tem react e
+// react-dom instalados: é de lá que o empacotador os resolve.
+const obras = join(import.meta.dir, ".obras");
 
-const paraJs = (tsx: string) =>
-  transform(tsx, { transforms: ["typescript", "jsx", "imports"], jsxRuntime: "classic" }).code;
+// A home importa './kit', então ela e um reexport do kit precisam ficar lado a
+// lado. Montamos isso numa pasta de obras, sem tocar nos arquivos de verdade.
+rmSync(obras, { recursive: true, force: true });
+mkdirSync(obras, { recursive: true });
+cpSync(home, join(obras, "home.tsx"));
+writeFileSync(
+  join(obras, "kit.tsx"),
+  `export * from ${JSON.stringify(relative(obras, KIT_PATH).replace(/\\/g, "/"))};\n` +
+    `export { default } from ${JSON.stringify(relative(obras, KIT_PATH).replace(/\\/g, "/"))};\n`,
+);
+writeFileSync(
+  join(obras, "entrada.tsx"),
+  `import React from "react";
+import { createRoot } from "react-dom/client";
+import Home from "./home";
 
-/** Avalia um módulo num shim CommonJS, igual ao que a extensão faz no sandbox. */
-function avaliar(js: string, deps: Record<string, unknown>): Record<string, any> {
-  const module_ = { exports: {} as any };
-  new Function("require", "module", "exports", "React", js)(
-    (name: string) => {
-      if (name in deps) return deps[name];
-      throw new Error(`import não permitido: "${name}"`);
-    },
-    module_,
-    module_.exports,
-    React,
-  );
-  return module_.exports;
+createRoot(document.getElementById("raiz")!).render(<Home />);
+`,
+);
+
+const build = await Bun.build({
+  entrypoints: [join(obras, "entrada.tsx")],
+  target: "browser",
+  minify: true,
+  define: { "process.env.NODE_ENV": '"production"' },
+});
+
+if (!build.success) {
+  for (const log of build.logs) console.error(log);
+  throw new Error("o empacotamento falhou");
 }
 
-const kit = avaliar(paraJs(readFileSync(KIT_PATH, "utf-8")), { react: React });
-const exports_ = avaliar(paraJs(readFileSync(home, "utf-8")), {
-  react: React,
-  "./kit": kit,
-  "./kit.js": kit,
-});
-const Home = exports_.default ?? exports_.PersonalizedHomepage;
-if (typeof Home !== "function") throw new Error("a home não exporta um componente");
-
-mkdirSync(saida, { recursive: true });
-
-const html = renderToStaticMarkup(React.createElement(Home));
-if (!html.includes("m-jornal")) throw new Error("a home não está usando o kit (classe m-* ausente)");
-
-// O modo é uma classe no elemento raiz, então a prévia do outro modo é a mesma
-// árvore com a classe trocada — sem reimplementar nada do kit aqui.
-for (const modo of ["jornal", "portal"] as const) {
-  const corpo = modo === "jornal" ? html : html.replace("m-jornal", "m-portal");
-  const arquivo = join(saida, `${modo}.html`);
-  writeFileSync(
-    arquivo,
-    `<!DOCTYPE html>
+const js = await build.outputs[0].text();
+// Em arquivo próprio, não embutido: o bundle minificado tem sequências que o
+// parser de HTML corta no meio quando vão dentro de <script>.
+writeFileSync(join(saida, "diario.js"), js);
+const arquivo = join(saida, "diario.html");
+writeFileSync(
+  arquivo,
+  `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Diário · modo ${modo}</title>
+<title>Diário · prévia</title>
 <style>html,body{margin:0}</style></head>
-<body>${corpo}</body></html>`,
-  );
-  console.log(`✅ ${arquivo} (${corpo.length}b)`);
-}
+<body><div id="raiz"></div><script src="./diario.js"></script></body></html>`,
+);
+rmSync(obras, { recursive: true, force: true });
 
-console.log(`
-Abra os dois e compare. Conteúdo de ${home}.`);
+console.log(`✅ ${arquivo} (${Math.round(js.length / 1024)} kB de JS)`);
+console.log(`   Conteúdo de ${home}. Os seletores de modo e tamanho funcionam.`);

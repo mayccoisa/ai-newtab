@@ -6,13 +6,15 @@
     "build": "pnpm --filter @homepage/extension build",
     "dev": "pnpm --filter @homepage/extension dev",
     "bridge": "pnpm --filter @homepage/bridge start",
+    "ponte": "node scripts/ponte.mjs",
     "typecheck": "pnpm -r typecheck",
     "test": "bun test harness/ && pnpm --filter @homepage/bridge test",
     "home:verify": "bun harness/verify-homepage.ts",
     "previa": "bun harness/previa.ts",
     "extension:test": "bun harness/test-extension.ts",
     "coleta": "node scripts/coletar.mjs",
-    "capas": "node scripts/capas.mjs"
+    "capas": "node scripts/capas.mjs",
+    "icones": "node scripts/icones.mjs"
   },
   "devDependencies": {
     "typescript": "^5.8.3"

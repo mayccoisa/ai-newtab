@@ -15,10 +15,10 @@
  *
  * Sai com 0 quando a coleta chega, 1 quando o tempo acaba ou a ponte não sobe.
  */
-import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { garantirPonte } from "./ponte.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const PORT = Number(process.env.NEWTAB_PORT || 4317);
@@ -38,23 +38,6 @@ async function get(path, init) {
   }
 }
 
-async function garantirPonte() {
-  if (await get("/health")) return true;
-  console.log("Ponte desligada; subindo em segundo plano...");
-  const child = spawn(process.execPath, [join(ROOT, "apps/bridge/server.mjs")], {
-    cwd: ROOT,
-    detached: true,
-    stdio: "ignore",
-    windowsHide: true,
-  });
-  child.unref();
-  for (let i = 0; i < 20; i++) {
-    await sleep(500);
-    if (await get("/health")) return true;
-  }
-  return false;
-}
-
 function resumo() {
   const idx = JSON.parse(readFileSync(join(ROOT, "curadoria/coleta/indice.json"), "utf8"));
   console.log(`Coleta de ${new Date(idx.collectedAt).toLocaleString("pt-BR")}`);
@@ -67,7 +50,7 @@ function resumo() {
 }
 
 async function main() {
-  if (!(await garantirPonte())) {
+  if (!(await garantirPonte({ base: BASE, raiz: ROOT, log: (m) => console.log(m) }))) {
     console.error(`A ponte não respondeu em ${BASE}. Rode "pnpm bridge" para ver o erro.`);
     return 1;
   }

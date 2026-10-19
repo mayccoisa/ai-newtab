@@ -55,6 +55,7 @@ O que a home sabe e você não, ela fala — em vez de parecer vazia ou completa
 | A home só muda quando você reconstrói | **Muda ao vivo**: o Claude edita o arquivo e a aba atualiza em segundos |
 | O layout vem junto com o conteúdo, reescrito a cada vez | **Kit versionado** com dois modos de leitura; a home carrega só conteúdo |
 | Ponte offline = botão desabilitado | A aba diz o que parou e dá o comando para copiar |
+| A ponte só existe enquanto um terminal fica aberto | **Sobe junto com o seu login**, em segundo plano: abrir o Chrome basta |
 
 ## Instalar
 
@@ -68,7 +69,26 @@ npx pnpm@10.11.1 build
 ```
 
 1. `chrome://extensions` › **Modo do desenvolvedor** › **Carregar sem compactação** › `apps/extension/.output/chrome-mv3`.
-2. Deixe a ponte rodando num terminal: `npx pnpm@10.11.1 bridge` (porta 4317, só em `127.0.0.1`).
+2. Registre a ponte no seu login, uma vez (Windows). Abra a pasta Inicializar com
+   **Win+R › `shell:startup`** e crie ali um atalho para:
+
+   ```
+   wscript.exe "C:\proj\ai-newtab\scripts\ponte-login.vbs"
+   ```
+
+   Daí em diante a ponte sobe junto com a sua sessão do Windows, em segundo plano e sem janela: você
+   abre o Chrome e o Diário funciona, sem terminal nenhum. O `.vbs` só chama `scripts\ponte.cmd`
+   escondendo o console, e descobre a raiz pelo próprio caminho. Para conferir, dê duplo clique no
+   atalho e abra <http://127.0.0.1:4317/health>. Para desfazer, apague o atalho.
+
+   > Em máquina onde você possa agendar tarefa, `schtasks /create /tn "AI Homepage - Ponte local"
+   > /sc onlogon /tr "C:\proj\ai-newtab\scripts\ponte.cmd"` faz o mesmo. Em máquina com política
+   > corporativa isso costuma voltar **Acesso negado**, e é para esse caso que existe o atalho.
+
+Se preferir não registrar nada, a ponte continua subindo sob demanda: **`npx pnpm@10.11.1 ponte`**
+sobe e devolve o terminal, `pnpm bridge` deixa ela em primeiro plano (bom para ver o erro) e
+`pnpm coleta` sobe sozinho antes de pedir a coleta. Em todos os casos é a porta 4317, só em
+`127.0.0.1`. Fora do Windows, chame `node scripts/ponte.mjs` no que já inicia a sua sessão.
 
 ## Usar
 
@@ -98,6 +118,7 @@ não é onde está o conteúdo. Veja [CLAUDE.md](./CLAUDE.md) para o roteiro com
 packages/agent-core   filtro de sites e resumo do histórico (puro, sem chrome.* nem node:*)
 apps/extension        a extensão MV3 (WXT + React): coletor e a página do Diário
 apps/bridge           ponte local (Node puro, sem dependências)
+scripts               ponte.mjs (garante a ponte no ar), coletar.mjs, capas.mjs
 harness               testes do Bun, prévia estática e teste da extensão no Chrome headless
 
 apps/extension/entrypoints/home/kit/diario-kit.tsx    o layout do Diário (os dois modos)
@@ -106,6 +127,7 @@ curadoria/homepage.tsx                                 só o conteúdo da ediç�
 
 ```bash
 pnpm dev            # WXT com hot reload
+pnpm ponte          # sobe a ponte em segundo plano e devolve o terminal
 pnpm typecheck
 pnpm test           # bun test harness/ + node --test da ponte
 pnpm home:verify    # curadoria/homepage.tsx renderiza?

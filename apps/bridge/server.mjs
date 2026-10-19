@@ -155,7 +155,17 @@ export function createBridge({ dir, port = DEFAULT_PORT }) {
     }
   });
 
-  return { server, files, port, listen: () => new Promise((ok) => server.listen(port, "127.0.0.1", ok)) };
+  /** Rejeita quando a porta não sobe (tipicamente EADDRINUSE: já existe uma ponte). */
+  const listen = () =>
+    new Promise((ok, fail) => {
+      server.once("error", fail);
+      server.listen(port, "127.0.0.1", () => {
+        server.off("error", fail);
+        ok();
+      });
+    });
+
+  return { server, files, port, listen };
 }
 
 // Run as a script (not when imported by the tests).
@@ -163,7 +173,15 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   const dir = resolve(process.env.NEWTAB_DIR ?? join(HERE, "..", "..", "curadoria"));
   const port = Number(process.env.NEWTAB_PORT ?? DEFAULT_PORT);
   const bridge = createBridge({ dir, port });
-  await bridge.listen();
+  try {
+    await bridge.listen();
+  } catch (err) {
+    // Tentar subir de novo é o caso normal (duas abas, o `pnpm ponte`, a tarefa de
+    // login): quem chegou depois diz que a ponte já está lá, sem stack trace.
+    if (err?.code !== "EADDRINUSE") throw err;
+    console.log(`Já existe uma ponte atendendo em http://127.0.0.1:${port}. Nada a fazer.`);
+    process.exit(0);
+  }
   console.log(`Ponte local em http://127.0.0.1:${port}`);
   console.log(`  pasta da curadoria: ${dir}`);
   console.log(`  homepage:           ${bridge.files.homepage}`);

@@ -42,6 +42,12 @@ Zero dependências (`node:http`). Endpoints:
 escrever nem ler), e `Host` fora de loopback também (DNS rebinding). Requisições sem `Origin`
 (curl, o próprio Claude) passam. Testes em `apps/bridge/server.test.mjs`.
 
+**Quem a liga.** `scripts/ponte.mjs` é o guardião: pergunta `/health` e, se ninguém atender, sobe
+uma ponte desacoplada do terminal. É ele que o `pnpm ponte` chama, que o `pnpm coleta` chama antes
+de pedir a coleta, e que a tarefa de login do Windows chama (ver **Instalar** no README) — o que
+tirou do caminho o `pnpm bridge` ocupando um terminal para o Diário funcionar. Subir uma segunda
+ponte na mesma porta não derruba a primeira: a de depois diz que já tem uma e sai com 0.
+
 ## A coleta
 
 `apps/extension/lib/collector.ts` (`CollectManager`), um por service worker:
@@ -69,6 +75,7 @@ por modelo, então roda dentro de um iframe Sandpack, nunca na página da extens
 ```
 packages/agent-core/   puro: tipos, resumo do histórico, filtro de sites (sem chrome.*, browser.* ou node:*)
 apps/bridge/           server.mjs + testes
+scripts/               ponte.mjs (garante a ponte no ar), coletar.mjs, capas.mjs
 apps/extension/        entrypoints/background.ts, home/, lib/{collector,bridge,history,scraper,storage,protocol,auto-collect,transpile}.ts
 harness/               testes do Bun e verificação da extensão no Chrome headless
 curadoria/             pasta de trabalho (ignorada pelo git); ver curadoria/README.md
@@ -78,7 +85,7 @@ curadoria/             pasta de trabalho (ignorada pelo git); ver curadoria/READ
 
 | Comando | Prova |
 |---|---|
-| `pnpm test` | Resumo do histórico, filtro de sites, e a ponte (coleta substitui a anterior, 403 para páginas web e Host falso) |
+| `pnpm test` | Resumo do histórico, filtro de sites, o guardião da ponte (não sobe uma segunda) e a ponte (coleta substitui a anterior, 403 para páginas web e Host falso) |
 | `pnpm typecheck` | Tipos em todos os pacotes |
 | `pnpm home:verify` | `curadoria/homepage.tsx` transpila, avalia e renderiza só com React |
 | `pnpm extension:test` | No Chrome headless: worker registra, a página do Diário renderiza o estado vazio, a porta responde, `start` com a ponte desligada falha com mensagem clara |
